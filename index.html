@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <meta name="theme-color" content="#075e54"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <title>Registrador Boletas</title>
+  <link rel="manifest" href="manifest.json"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,'Segoe UI',sans-serif}
+    :root{--vd:#075e54;--vc:#25d366;--bi:#fff;--bo:#d9fdd3;--fc:#efeae2}
+    html,body{height:100%;overflow:hidden;background:var(--vd)}
+    .pantalla{display:none;flex-direction:column;height:100dvh}
+    .pantalla.activa{display:flex}
+    .header{background:var(--vd);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+    .header h1{font-size:18px;font-weight:600;flex:1}
+    #lista-clientes{flex:1;overflow-y:auto;background:#fff}
+    .cliente-item{padding:14px 16px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #f0f0f0;cursor:pointer;background:#fff}
+    .cliente-item:active{background:#f5f5f5}
+    .avatar{width:50px;height:50px;border-radius:50%;background:var(--vc);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;font-weight:bold;flex-shrink:0}
+    .cliente-info h3{font-size:16px;color:#111}
+    .cliente-info p{font-size:13px;color:#888;margin-top:2px}
+    .sin-clientes{text-align:center;padding:60px 20px;color:#999}
+    .fab{position:fixed;bottom:20px;right:20px;width:58px;height:58px;border-radius:50%;background:var(--vc);border:none;color:#fff;font-size:30px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;z-index:50}
+    #pantalla-chat{background:var(--fc)}
+    .chat-header{background:var(--vd);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+    .chat-header .back{background:none;border:none;color:#fff;font-size:26px;cursor:pointer;line-height:1}
+    .avatar-sm{width:40px;height:40px;border-radius:50%;background:var(--vc);display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:18px;color:#fff;flex-shrink:0}
+    .chat-header h2{font-size:16px;font-weight:600}
+    .mensajes{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+    .burbuja{max-width:82%;padding:8px 12px 4px;border-radius:8px;font-size:14px;line-height:1.45;word-break:break-word;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+    .burbuja.entrada{background:var(--bi);align-self:flex-start;border-top-left-radius:0}
+    .burbuja.salida{background:var(--bo);align-self:flex-end;border-top-right-radius:0}
+    .burbuja .hora{font-size:11px;color:#aaa;text-align:right;margin-top:3px}
+    .burbuja img{max-width:100%;border-radius:6px;margin-bottom:4px;display:block}
+    .tarjeta{background:#fff;border-radius:10px;padding:12px 14px;max-width:85%;align-self:flex-end;border-top-right-radius:0;box-shadow:0 1px 3px rgba(0,0,0,.12);font-size:13px}
+    .tarjeta h4{color:var(--vd);font-size:14px;margin-bottom:8px}
+    .tarjeta .c{margin:4px 0;color:#333}
+    .tarjeta a{color:var(--vc)}
+    .tarjeta .hora{font-size:11px;color:#aaa;text-align:right;margin-top:6px}
+    .input-zona{background:#f0f0f0;padding:8px 10px;display:flex;flex-direction:column;gap:7px;flex-shrink:0}
+    .fila-txt{display:flex;gap:8px;align-items:flex-end}
+    .txt{flex:1;border:none;border-radius:22px;padding:10px 16px;font-size:15px;resize:none;max-height:110px;min-height:44px;outline:none;background:#fff;line-height:1.4;font-family:inherit}
+    .btn-send{width:44px;height:44px;border-radius:50%;border:none;background:var(--vc);color:#fff;font-size:20px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+    .fila-acc{display:flex;gap:7px}
+    .btn-a{flex:1;padding:10px 6px;border:none;border-radius:22px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+    .btn-foto{background:#fff;color:var(--vd)}
+    .btn-monto{background:#fff;color:#e67e00}
+    .btn-reg{background:var(--vc);color:#fff;flex:2}
+    .btn-limpiar{background:#ff5252;color:#fff;flex:0 0 44px;border-radius:50%;padding:0;width:44px;height:44px}
+    .prev-wrap{display:none;position:relative;width:fit-content}
+    .prev-wrap img{max-height:72px;border-radius:8px}
+    .prev-wrap .x{position:absolute;top:-7px;right:-7px;background:#ff5252;color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:center;justify-content:center}
+    .overlay.abierto{display:flex}
+    .modal{background:#fff;border-radius:14px;padding:22px 20px;width:88%;max-width:340px}
+    .modal h3{color:var(--vd);margin-bottom:14px;font-size:17px}
+    .modal input{width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:15px;margin-bottom:10px;outline:none;font-family:inherit}
+    .modal input:focus{border-color:var(--vc)}
+    .modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+    .modal-btns button{padding:10px 18px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer}
+    .btn-cancel{background:#f0f0f0;color:#666}
+    .btn-ok{background:var(--vc);color:#fff}
+    .spinner{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.35);border-radius:50%;border-top-color:#fff;animation:spin .75s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 22px;border-radius:22px;font-size:14px;z-index:400;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+    .toast.show{opacity:1}
+  </style>
+</head>
+<body>
+
+<div id="pantalla-inicio" class="pantalla activa">
+  <div class="header"><h1>📋 Registrador Boletas</h1></div>
+  <div id="lista-clientes"></div>
+  <button class="fab" onclick="abrirModalCliente()">＋</button>
+</div>
+
+<div id="pantalla-chat" class="pantalla">
+  <div class="chat-header">
+    <button class="back" onclick="volverInicio()">&#8592;</button>
+    <div class="avatar-sm" id="chat-av"></div>
+    <h2 id="chat-titulo"></h2>
+  </div>
+  <div class="mensajes" id="mensajes"></div>
+  <div class="input-zona">
+    <div class="prev-wrap" id="prev-wrap">
+      <img id="prev-img" src="" alt=""/>
+      <button class="x" onclick="quitarImg()">✕</button>
+    </div>
+    <div class="fila-txt">
+      <textarea class="txt" id="txt" placeholder="Pega aquí el texto de WhatsApp..." rows="1" oninput="autoH(this)"></textarea>
+      <button class="btn-send" onclick="enviarTexto()">&#10148;</button>
+    </div>
+    <div class="fila-acc">
+      <label class="btn-a btn-foto">📷 Foto<input type="file" accept="image/*" style="display:none" onchange="elegirImg(this)"/></label>
+      <button class="btn-a btn-monto" onclick="abrirModalMonto()">💰 Monto</button>
+      <button class="btn-a btn-reg" id="btn-reg" onclick="registrar()">✅ Registrar</button>
+      <button class="btn-a btn-limpiar" onclick="limpiar()">🗑</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="modal-cliente">
+  <div class="modal">
+    <h3>➕ Nuevo cliente</h3>
+    <input type="text" id="inp-nombre" placeholder="Nombre del cliente"/>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModal('modal-cliente')">Cancelar</button>
+      <button class="btn-ok" onclick="guardarCliente()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="modal-monto">
+  <div class="modal">
+    <h3>💰 Ingresar monto</h3>
+    <input type="number" id="inp-monto" placeholder="Ej: 45000" inputmode="numeric"/>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModal('modal-monto')">Cancelar</button>
+      <button class="btn-ok" onclick="guardarMonto()">OK</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const URL_AS='https://script.google.com/macros/s/AKfycby8m-LASEHb4QqEkR00vGbUBrB_ktdhC4d-h5280Fj7iRWIc2QNS_1dEok5MtB5WLM8DA/exec';
+let clienteActual=null,textoAcum='',imgFile=null,imgDataUrl=null,montoManual=null;
+
+function ahora(){return new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})}
+function toast(m,ms=3000){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),ms)}
+function autoH(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,110)+'px'}
+function scrollFin(){const m=document.getElementById('mensajes');setTimeout(()=>m.scrollTop=m.scrollHeight,60)}
+function guardarChat(){if(!clienteActual)return;localStorage.setItem('chat_'+clienteActual.id,document.getElementById('mensajes').innerHTML)}
+
+function cargarClientes(){const r=localStorage.getItem('clientes');return r?JSON.parse(r):[]}
+function guardarClientes(l){localStorage.setItem('clientes',JSON.stringify(l))}
+function renderClientes(){
+  const lista=cargarClientes(),el=document.getElementById('lista-clientes');
+  if(!lista.length){el.innerHTML='<div class="sin-clientes"><div style="font-size:52px;margin-bottom:14px">💼</div><p>No hay clientes todavía.</p><p style="margin-top:8px;font-size:13px">Toca <b>＋</b> para agregar uno.</p></div>';return}
+  el.innerHTML=lista.map(c=>`<div class="cliente-item" onclick="abrirChat(${c.id})"><div class="avatar">${c.nombre[0].toUpperCase()}</div><div class="cliente-info"><h3>${c.nombre}</h3><p>Toca para registrar datos</p></div></div>`).join('')
+}
+function abrirModalCliente(){document.getElementById('inp-nombre').value='';document.getElementById('modal-cliente').classList.add('abierto');setTimeout(()=>document.getElementById('inp-nombre').focus(),100)}
+function cerrarModal(id){document.getElementById(id).classList.remove('abierto')}
+function guardarCliente(){
+  const n=document.getElementById('inp-nombre').value.trim();
+  if(!n){toast('Escribe un nombre');return}
+  const l=cargarClientes();l.push({id:Date.now(),nombre:n});guardarClientes(l);cerrarModal('modal-cliente');renderClientes();toast('✅ Cliente "'+n+'" agregado')
+}
+
+function abrirChat(id){
+  const l=cargarClientes();clienteActual=l.find(c=>c.id===id);if(!clienteActual)return;
+  document.getElementById('chat-titulo').textContent=clienteActual.nombre;
+  document.getElementById('chat-av').textContent=clienteActual.nombre[0].toUpperCase();
+  document.getElementById('pantalla-inicio').classList.remove('activa');
+  document.getElementById('pantalla-chat').classList.add('activa');
+  document.getElementById('mensajes').innerHTML=localStorage.getItem('chat_'+clienteActual.id)||'';
+  scrollFin();
+  if(window._txt){document.getElementById('txt').value=window._txt;autoH(document.getElementById('txt'));window._txt=null}
+}
+function volverInicio(){document.getElementById('pantalla-chat').classList.remove('activa');document.getElementById('pantalla-inicio').classList.add('activa');clienteActual=null}
+
+function burbuja(html,tipo){
+  const d=document.createElement('div');d.className='burbuja '+tipo;
+  d.innerHTML=html+`<div class="hora">${ahora()}</div>`;
+  document.getElementById('mensajes').appendChild(d);guardarChat();scrollFin()
+}
+function enviarTexto(){
+  const t=document.getElementById('txt'),v=t.value.trim();if(!v)return;
+  textoAcum+=(textoAcum?'\n':'')+v;burbuja(v.replace(/\n/g,'<br>'),'entrada');
+  t.value='';t.style.height='auto'
+}
+function elegirImg(i){
+  const f=i.files[0];if(!f)return;imgFile=f;
+  const r=new FileReader();r.onload=e=>{imgDataUrl=e.target.result;document.getElementById('prev-img').src=imgDataUrl;document.getElementById('prev-wrap').style.display='block'};
+  r.readAsDataURL(f);i.value=''
+}
+function quitarImg(){imgFile=imgDataUrl=null;document.getElementById('prev-wrap').style.display='none';document.getElementById('prev-img').src=''}
+function abrirModalMonto(){document.getElementById('inp-monto').value=montoManual||'';document.getElementById('modal-monto').classList.add('abierto');setTimeout(()=>document.getElementById('inp-monto').focus(),100)}
+function guardarMonto(){const v=parseInt(document.getElementById('inp-monto').value);if(!v||v<=0){toast('Ingresa un monto válido');return}montoManual=v;cerrarModal('modal-monto');burbuja(`💰 Monto: <b>$${v.toLocaleString('es-CL')}</b>`,'entrada')}
+function limpiar(){if(!confirm('¿Limpiar el chat?'))return;textoAcum='';imgFile=imgDataUrl=montoManual=null;document.getElementById('mensajes').innerHTML='';document.getElementById('txt').value='';document.getElementById('txt').style.height='auto';quitarImg();guardarChat()}
+
+function parsearTexto(t){
+  const r={nombre:'',rut:'',direccion:'',email:''};if(!t)return r;
+  const em=t.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);if(em)r.email=em[0];
+  const rm=t.match(/\b\d{1,2}\.?\d{3}\.?\d{3}-?[0-9Kk]\b/);
+  if(rm){let rut=rm[0].replace(/\./g,'');if(!rut.includes('-'))rut=rut.slice(0,-1)+'-'+rut.slice(-1);r.rut=rut.toUpperCase();
+    const idx=t.indexOf(rm[0]);
+    r.nombre=t.slice(0,idx).replace(/\.?\s*[Rr]ut\.?\s*$/i,'').replace(/\.$/,'').trim();
+    r.direccion=t.slice(idx+rm[0].length).replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/,'').replace(/^[\s.,]+/,'').trim()
+  }else{const ls=t.split('\n').filter(l=>l.trim());if(ls[0])r.nombre=ls[0].trim();if(ls[1])r.direccion=ls[1].trim()}
+  return r
+}
+function inferirRegion(d){
+  if(!d)return'No encontrada';const u=d.toUpperCase();
+  if(/METROPOLITANA|SANTIAGO|SAN MIGUEL|INDEPENDENCIA|MELIPILLA|MAIPU|PROVIDENCIA|LAMPA/.test(u))return'Región Metropolitana';
+  if(/BIO|CONCEPCI|CHIGUAYANTE|TALCAHUANO|SAN PEDRO|LOS ANGELES|LOS .NGELES|LARAQUETE/.test(u))return'Región del Biobío';
+  if(/ANTOFAGASTA/.test(u))return'Región de Antofagasta';
+  if(/VALPARA|VI.A/.test(u))return'Región de Valparaíso';
+  if(/TEMUCO|ARAUCA/.test(u))return'Región de La Araucanía';
+  if(/OVALLE|COQUIMBO|LA SERENA|MONTE PATRIA/.test(u))return'Región de Coquimbo';
+  if(/COPIAPO|COPIAP./.test(u))return'Región de Atacama';
+  if(/RANCAGUA/.test(u))return"Región del Libertador Gral. B. O'Higgins";
+  if(/TALCA|MAULE/.test(u))return'Región del Maule';
+  if(/CHILLAN|CHILL.N|.UBLE/.test(u))return'Región de Ñuble';
+  if(/OSORNO|PUERTO MONTT/.test(u))return'Región de Los Lagos';
+  if(/VALDIVIA/.test(u))return'Región de Los Ríos';
+  if(/ARICA/.test(u))return'Región de Arica y Parinacota';
+  if(/IQUIQUE/.test(u))return'Región de Tarapacá';
+  if(/PUNTA ARENAS/.test(u))return'Región de Magallanes';
+  if(/COYHAIQUE/.test(u))return'Región de Aysén';
+  return'No encontrada'
+}
+
+async function registrar(){
+  if(!textoAcum&&!imgFile&&!montoManual){toast('⚠️ Agrega texto, foto o monto antes de registrar');return}
+  const btn=document.getElementById('btn-reg');
+  btn.innerHTML='<span class="spinner"></span> Enviando...';btn.disabled=true;
+  try{
+    if(imgFile&&imgDataUrl)burbuja(`<img src="${imgDataUrl}" alt="comprobante"/>`,'entrada');
+    const datos=parsearTexto(textoAcum);
+    if(montoManual)datos.monto=montoManual;
+    datos.region=inferirRegion(datos.direccion);
+    if(imgFile){datos.imagenBase64=imgDataUrl.split(',')[1];datos.imagenMime=imgFile.type}
+    if(!datos.nombre)datos.nombre=clienteActual.nombre;
+    const res=await fetch(URL_AS,{method:'POST',body:JSON.stringify(datos),headers:{'Content-Type':'text/plain'}});
+    const data=await res.json();
+    if(data.ok){
+      const div=document.createElement('div');div.className='tarjeta';
+      div.innerHTML=`<h4>✅ Registrado #${data.numero}</h4>
+        <div class="c"><b>Nombre:</b> ${datos.nombre||'—'}</div>
+        <div class="c"><b>RUT:</b> ${datos.rut||'—'}</div>
+        <div class="c"><b>Dirección:</b> ${datos.direccion||'—'}</div>
+        <div class="c"><b>Región:</b> ${datos.region||'—'}</div>
+        <div class="c"><b>Monto:</b> ${datos.monto?'$'+Number(datos.monto).toLocaleString('es-CL'):'—'}</div>
+        ${data.linkFoto?`<div class="c"><a href="${data.linkFoto}" target="_blank">📎 Ver comprobante</a></div>`:''}
+        <div class="hora">${ahora()}</div>`;
+      document.getElementById('mensajes').appendChild(div);guardarChat();scrollFin();
+      toast('✅ ¡Registrado correctamente!');
+      textoAcum='';imgFile=imgDataUrl=montoManual=null;
+      document.getElementById('txt').value='';document.getElementById('txt').style.height='auto';quitarImg()
+    }else{toast('❌ Error: '+(data.error||'desconocido'))}
+  }catch(err){toast('❌ Error de conexión');console.error(err)}
+  finally{btn.innerHTML='✅ Registrar';btn.disabled=false}
+}
+
+window.addEventListener('load',()=>{const p=new URLSearchParams(window.location.search);const t=p.get('text')||p.get('title')||'';if(t)window._txt=decodeURIComponent(t)});
+document.addEventListener('DOMContentLoaded',()=>{renderClientes();document.getElementById('txt').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviarTexto()}})});
+</script>
+</body>
+</html>
