@@ -173,10 +173,40 @@ function enviarTexto(){
   textoAcum+=(textoAcum?'\n':'')+v;burbuja(v.replace(/\n/g,'<br>'),'entrada');
   t.value='';t.style.height='auto'
 }
+
+// ===== NUEVO: comprime la imagen antes de guardarla en memoria =====
+function comprimirImagen(file, callback){
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 1280;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * (MAX / w)); w = MAX; }
+        else { w = Math.round(w * (MAX / h)); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      callback(dataUrl);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 function elegirImg(i){
-  const f=i.files[0];if(!f)return;imgFile=f;
-  const r=new FileReader();r.onload=e=>{imgDataUrl=e.target.result;document.getElementById('prev-img').src=imgDataUrl;document.getElementById('prev-wrap').style.display='block'};
-  r.readAsDataURL(f);i.value=''
+  const f=i.files[0];if(!f)return;
+  toast('Optimizando foto...',1500);
+  comprimirImagen(f, dataUrl => {
+    imgDataUrl = dataUrl;
+    imgFile = { type: 'image/jpeg' }; // ya viene comprimida como jpeg
+    document.getElementById('prev-img').src=imgDataUrl;
+    document.getElementById('prev-wrap').style.display='block';
+  });
+  i.value=''
 }
 function quitarImg(){imgFile=imgDataUrl=null;document.getElementById('prev-wrap').style.display='none';document.getElementById('prev-img').src=''}
 function abrirModalMonto(){document.getElementById('inp-monto').value=montoManual||'';document.getElementById('modal-monto').classList.add('abierto');setTimeout(()=>document.getElementById('inp-monto').focus(),100)}
@@ -252,7 +282,6 @@ window.addEventListener('load',()=>{
   const p=new URLSearchParams(window.location.search);
   const t=p.get('text')||p.get('title')||'';
   if(t)window._txt=decodeURIComponent(t);
-  // Registrar service worker para instalación como app
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js')
       .then(()=>console.log('SW registrado'))
