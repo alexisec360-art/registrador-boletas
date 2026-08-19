@@ -2,8 +2,8 @@
   "name": "Registrador Boletas",
   "short_name": "Registrador",
   "description": "Registra datos de clientes en Google Sheets desde WhatsApp",
-  "start_url": "/registrador-boletas/",
-  "scope": "/registrador-boletas/",
+  "start_url": "https://alexisec360-art.github.io/registrador-boletas/index.html",
+  "scope": "https://alexisec360-art.github.io/registrador-boletas/",
   "display": "standalone",
   "background_color": "#075e54",
   "theme_color": "#075e54",
@@ -15,5 +15,14 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "share_target": {
+    "action": "index.html",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }
