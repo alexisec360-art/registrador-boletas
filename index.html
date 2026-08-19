@@ -216,8 +216,9 @@ function inferirRegion(d){
 }
 
 async function registrar(){
-  if(!textoAcum&&!imgFile&&!montoManual){toast('⚠️ Agrega texto, foto o monto antes de registrar');return}
   const btn=document.getElementById('btn-reg');
+  if(btn.disabled)return;
+  if(!textoAcum&&!imgFile&&!montoManual){toast('⚠️ Agrega texto, foto o monto antes de registrar');return}
   btn.innerHTML='<span class="spinner"></span> Enviando...';btn.disabled=true;
   try{
     if(imgFile&&imgDataUrl)burbuja(`<img src="${imgDataUrl}" alt="comprobante"/>`,'entrada');
