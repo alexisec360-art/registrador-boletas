@@ -1,14 +1,13 @@
-const CACHE = 'registrador-v1';
+const CACHE = 'registrador-v2';
 const ARCHIVOS = [
-  './',
-  './index.html',
-  './manifest.json'
+  '/registrador-boletas/',
+  '/registrador-boletas/index.html',
+  '/registrador-boletas/manifest.json',
+  '/registrador-boletas/icon.png'
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ARCHIVOS))
-  );
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARCHIVOS)));
   self.skipWaiting();
 });
 
