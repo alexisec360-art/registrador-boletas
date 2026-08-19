@@ -1,4 +1,4 @@
-const CACHE = 'registrador-v2';
+const CACHE = 'registrador-v3';
 const ARCHIVOS = [
   '/registrador-boletas/',
   '/registrador-boletas/index.html',
@@ -21,6 +21,11 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  // No interceptar peticiones que no sean GET (evita duplicar el envío al Apps Script)
+  if (e.request.method !== 'GET') return;
+  // No cachear ni interceptar llamadas a otros dominios (Apps Script, Drive, etc.)
+  if (!e.request.url.startsWith(self.location.origin)) return;
+
   e.respondWith(
     caches.match(e.request).then(r => r || fetch(e.request))
   );
