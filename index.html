@@ -159,7 +159,25 @@ function abrirChat(id){
   document.getElementById('pantalla-chat').classList.add('activa');
   document.getElementById('mensajes').innerHTML=localStorage.getItem('chat_'+clienteActual.id)||'';
   scrollFin();
+
   if(window._txt){document.getElementById('txt').value=window._txt;autoH(document.getElementById('txt'));window._txt=null}
+
+  // Si venimos de "Compartir" desde WhatsApp (texto y/o foto), lo cargamos aquí
+  if(window._compartido){
+    const c=window._compartido;
+    if(c.texto){
+      document.getElementById('txt').value=c.texto;
+      autoH(document.getElementById('txt'));
+    }
+    if(c.imagenBase64){
+      imgDataUrl='data:'+(c.imagenMime||'image/jpeg')+';base64,'+c.imagenBase64;
+      imgFile={type:c.imagenMime||'image/jpeg'};
+      document.getElementById('prev-img').src=imgDataUrl;
+      document.getElementById('prev-wrap').style.display='block';
+    }
+    window._compartido=null;
+    toast('📥 Contenido compartido cargado');
+  }
 }
 function volverInicio(){document.getElementById('pantalla-chat').classList.remove('activa');document.getElementById('pantalla-inicio').classList.add('activa');clienteActual=null}
 
@@ -174,7 +192,6 @@ function enviarTexto(){
   t.value='';t.style.height='auto'
 }
 
-// ===== NUEVO: comprime la imagen antes de guardarla en memoria =====
 function comprimirImagen(file, callback){
   const reader = new FileReader();
   reader.onload = e => {
@@ -202,7 +219,7 @@ function elegirImg(i){
   toast('Optimizando foto...',1500);
   comprimirImagen(f, dataUrl => {
     imgDataUrl = dataUrl;
-    imgFile = { type: 'image/jpeg' }; // ya viene comprimida como jpeg
+    imgFile = { type: 'image/jpeg' };
     document.getElementById('prev-img').src=imgDataUrl;
     document.getElementById('prev-wrap').style.display='block';
   });
@@ -282,6 +299,23 @@ window.addEventListener('load',()=>{
   const p=new URLSearchParams(window.location.search);
   const t=p.get('text')||p.get('title')||'';
   if(t)window._txt=decodeURIComponent(t);
+
+  // Si venimos de un "Compartir" con foto (POST interceptado por el service worker)
+  if(p.get('compartido')==='1' && 'caches' in window){
+    caches.open('registrador-compartido').then(cache=>
+      cache.match('/pendiente').then(res=>{
+        if(res){
+          res.json().then(data=>{
+            window._compartido=data;
+            cache.delete('/pendiente');
+            history.replaceState({},'',window.location.pathname);
+            toast('📥 Ábre un cliente para ver lo compartido');
+          });
+        }
+      })
+    );
+  }
+
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js')
       .then(()=>console.log('SW registrado'))
