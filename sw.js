@@ -1,4 +1,4 @@
-const CACHE = 'registrador-v4';
+const CACHE = 'registrador-v5';
 const ARCHIVOS = [
   '/registrador-boletas/',
   '/registrador-boletas/index.html',
@@ -23,7 +23,6 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // ===== Recepción de "Compartir" desde WhatsApp (texto + foto) =====
   if (e.request.method === 'POST' && url.pathname === '/registrador-boletas/') {
     e.respondWith(manejarCompartido(e.request));
     return;
