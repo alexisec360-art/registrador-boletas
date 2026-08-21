@@ -16,6 +16,7 @@
     .pantalla.activa{display:flex}
     .header{background:var(--vd);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
     .header h1{font-size:18px;font-weight:600;flex:1}
+    .header .ver{font-size:10px;opacity:.6;cursor:pointer;padding:4px}
     #lista-clientes{flex:1;overflow-y:auto;background:#fff}
     .cliente-item{padding:14px 16px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #f0f0f0;cursor:pointer;background:#fff}
     .cliente-item:active{background:#f5f5f5}
@@ -67,12 +68,19 @@
     @keyframes spin{to{transform:rotate(360deg)}}
     .toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 22px;border-radius:22px;font-size:14px;z-index:400;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
     .toast.show{opacity:1}
+    .modal-diag{width:92%;max-width:420px;max-height:80vh;overflow-y:auto;text-align:left}
+    .modal-diag pre{background:#f0f0f0;padding:10px;border-radius:8px;font-size:11px;white-space:pre-wrap;word-break:break-all;margin-top:8px;max-height:220px;overflow-y:auto}
+    .modal-diag .fila-diag{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee;font-size:13px}
+    .modal-diag .fila-diag b{color:var(--vd)}
   </style>
 </head>
 <body>
 
 <div id="pantalla-inicio" class="pantalla activa">
-  <div class="header"><h1>📋 Registrador Boletas</h1></div>
+  <div class="header">
+    <h1>📋 Registrador Boletas</h1>
+    <span class="ver" onclick="abrirDiagnostico()">v1.6 🔧</span>
+  </div>
   <div id="lista-clientes"></div>
   <button class="fab" onclick="abrirModalCliente()">＋</button>
 </div>
@@ -124,9 +132,21 @@
   </div>
 </div>
 
+<div class="overlay" id="modal-diagnostico">
+  <div class="modal modal-diag">
+    <h3>🔧 Diagnóstico</h3>
+    <div class="fila-diag"><span>Versión del código</span><b id="diag-version">v1.6</b></div>
+    <div class="fila-diag"><span>URL del script</span><b style="font-size:10px;word-break:break-all">…</b></div>
+    <button class="btn-ok" style="width:100%;margin-top:10px" onclick="probarConexion()">📡 Probar conexión con Sheets</button>
+    <pre id="diag-resultado">Toca el botón para probar…</pre>
+    <button class="btn-cancel" style="width:100%;margin-top:10px;border-radius:10px" onclick="cerrarModal('modal-diagnostico')">Cerrar</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
+const VERSION_APP = 'v1.6 - 20/08/2026 - clientes por hoja';
 const URL_AS='https://script.google.com/macros/s/AKfycbzS12GOA-PVS3d6F8oJO-aCo-AkrbyUl0lCnYWVXYkKkHuR1PPYJEUCDDS9OaYh3xeHLw/exec';
 let clienteActual=null,textoAcum='',imgFile=null,imgDataUrl=null,montoManual=null;
 
@@ -134,41 +154,96 @@ function ahora(){return new Date().toLocaleTimeString('es-CL',{hour:'2-digit',mi
 function toast(m,ms=3000){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),ms)}
 function autoH(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,110)+'px'}
 function scrollFin(){const m=document.getElementById('mensajes');setTimeout(()=>m.scrollTop=m.scrollHeight,60)}
-function guardarChat(){if(!clienteActual)return;localStorage.setItem('chat_'+clienteActual.id,document.getElementById('mensajes').innerHTML)}
+function guardarChat(){if(!clienteActual)return;localStorage.setItem('chat_'+clienteActual,document.getElementById('mensajes').innerHTML)}
 
-function cargarClientes(){const r=localStorage.getItem('clientes');return r?JSON.parse(r):[]}
-function guardarClientes(l){localStorage.setItem('clientes',JSON.stringify(l))}
-function renderClientes(){
-  const lista=cargarClientes(),el=document.getElementById('lista-clientes');
-  if(!lista.length){el.innerHTML='<div class="sin-clientes"><div style="font-size:52px;margin-bottom:14px">💼</div><p>No hay clientes todavía.</p><p style="margin-top:8px;font-size:13px">Toca <b>＋</b> para agregar uno.</p></div>';return}
-  el.innerHTML=lista.map(c=>`<div class="cliente-item" onclick="abrirChat(${c.id})"><div class="avatar">${c.nombre[0].toUpperCase()}</div><div class="cliente-info"><h3>${c.nombre}</h3><p>Toca para registrar datos</p></div></div>`).join('')
+// ===== Diagnóstico =====
+function abrirDiagnostico(){
+  document.getElementById('diag-version').textContent=VERSION_APP;
+  document.getElementById('modal-diagnostico').classList.add('abierto');
 }
+async function probarConexion(){
+  const pre=document.getElementById('diag-resultado');
+  pre.textContent='⏳ Probando conexión con doGet...\n';
+  try{
+    const res1=await fetch(URL_AS);
+    const data1=await res1.json();
+    pre.textContent = '✅ doGet responde:\n' + JSON.stringify(data1,null,2) + '\n\n';
+  }catch(e){
+    pre.textContent = '❌ doGet falló: ' + e.message + '\n\n';
+  }
+  pre.textContent += '⏳ Probando listarClientes...\n';
+  try{
+    const res2=await fetch(URL_AS+'?accion=listarClientes');
+    const data2=await res2.json();
+    pre.textContent += '✅ listarClientes responde:\n' + JSON.stringify(data2,null,2);
+  }catch(e){
+    pre.textContent += '❌ listarClientes falló: ' + e.message;
+  }
+}
+
+// ===== Lista de clientes: caché local + servidor (Google Sheets) =====
+function cargarClientesCache(){const r=localStorage.getItem('clientes_cache');return r?JSON.parse(r):[]}
+function guardarClientesCache(lista){localStorage.setItem('clientes_cache',JSON.stringify(lista))}
+
+function renderClientes(lista){
+  const el=document.getElementById('lista-clientes');
+  if(!lista.length){el.innerHTML='<div class="sin-clientes"><div style="font-size:52px;margin-bottom:14px">💼</div><p>No hay clientes todavía.</p><p style="margin-top:8px;font-size:13px">Toca <b>＋</b> para agregar uno.</p></div>';return}
+  el.innerHTML=lista.map(nombre=>`<div class="cliente-item" onclick="abrirChat('${nombre.replace(/'/g,"\\'")}')"><div class="avatar">${nombre[0].toUpperCase()}</div><div class="cliente-info"><h3>${nombre}</h3><p>Toca para registrar datos</p></div></div>`).join('')
+}
+
+async function cargarClientes(){
+  renderClientes(cargarClientesCache());
+  try{
+    const res=await fetch(URL_AS+'?accion=listarClientes');
+    const data=await res.json();
+    if(data.ok && Array.isArray(data.clientes)){
+      guardarClientesCache(data.clientes);
+      renderClientes(data.clientes);
+    }
+  }catch(err){
+    console.log('No se pudo actualizar la lista de clientes desde el servidor:',err);
+  }
+}
+
 function abrirModalCliente(){document.getElementById('inp-nombre').value='';document.getElementById('modal-cliente').classList.add('abierto');setTimeout(()=>document.getElementById('inp-nombre').focus(),100)}
 function cerrarModal(id){document.getElementById(id).classList.remove('abierto')}
-function guardarCliente(){
+
+async function guardarCliente(){
   const n=document.getElementById('inp-nombre').value.trim();
   if(!n){toast('Escribe un nombre');return}
-  const l=cargarClientes();l.push({id:Date.now(),nombre:n});guardarClientes(l);cerrarModal('modal-cliente');renderClientes();toast('✅ Cliente "'+n+'" agregado')
+  toast('⏳ Creando cliente...',4000);
+  try{
+    const res=await fetch(URL_AS,{method:'POST',body:JSON.stringify({accion:'crearCliente',nombre:n}),headers:{'Content-Type':'text/plain'}});
+    const data=await res.json();
+    if(data.ok){
+      cerrarModal('modal-cliente');
+      const lista=cargarClientesCache();
+      lista.push(data.nombre);
+      guardarClientesCache(lista);
+      renderClientes(lista);
+      toast('✅ Cliente "'+data.nombre+'" agregado');
+    }else{
+      toast('❌ Error: '+(data.error||'desconocido'));
+    }
+  }catch(err){
+    toast('❌ Error de conexión al crear cliente');
+  }
 }
 
-function abrirChat(id){
-  const l=cargarClientes();clienteActual=l.find(c=>c.id===id);if(!clienteActual)return;
-  document.getElementById('chat-titulo').textContent=clienteActual.nombre;
-  document.getElementById('chat-av').textContent=clienteActual.nombre[0].toUpperCase();
+function abrirChat(nombre){
+  clienteActual=nombre;
+  document.getElementById('chat-titulo').textContent=nombre;
+  document.getElementById('chat-av').textContent=nombre[0].toUpperCase();
   document.getElementById('pantalla-inicio').classList.remove('activa');
   document.getElementById('pantalla-chat').classList.add('activa');
-  document.getElementById('mensajes').innerHTML=localStorage.getItem('chat_'+clienteActual.id)||'';
+  document.getElementById('mensajes').innerHTML=localStorage.getItem('chat_'+nombre)||'';
   scrollFin();
 
   if(window._txt){document.getElementById('txt').value=window._txt;autoH(document.getElementById('txt'));window._txt=null}
 
-  // Si venimos de "Compartir" desde WhatsApp (texto y/o foto), lo cargamos aquí
   if(window._compartido){
     const c=window._compartido;
-    if(c.texto){
-      document.getElementById('txt').value=c.texto;
-      autoH(document.getElementById('txt'));
-    }
+    if(c.texto){document.getElementById('txt').value=c.texto;autoH(document.getElementById('txt'))}
     if(c.imagenBase64){
       imgDataUrl='data:'+(c.imagenMime||'image/jpeg')+';base64,'+c.imagenBase64;
       imgFile={type:c.imagenMime||'image/jpeg'};
@@ -273,7 +348,8 @@ async function registrar(){
     if(montoManual)datos.monto=montoManual;
     datos.region=inferirRegion(datos.direccion);
     if(imgFile){datos.imagenBase64=imgDataUrl.split(',')[1];datos.imagenMime=imgFile.type}
-    if(!datos.nombre)datos.nombre=clienteActual.nombre;
+    if(!datos.nombre)datos.nombre=clienteActual;
+    datos.cliente=clienteActual;
     const res=await fetch(URL_AS,{method:'POST',body:JSON.stringify(datos),headers:{'Content-Type':'text/plain'}});
     const data=await res.json();
     if(data.ok){
@@ -300,7 +376,6 @@ window.addEventListener('load',()=>{
   const t=p.get('text')||p.get('title')||'';
   if(t)window._txt=decodeURIComponent(t);
 
-  // Si venimos de un "Compartir" con foto (POST interceptado por el service worker)
   if(p.get('compartido')==='1' && 'caches' in window){
     caches.open('registrador-compartido').then(cache=>
       cache.match('/pendiente').then(res=>{
@@ -309,7 +384,7 @@ window.addEventListener('load',()=>{
             window._compartido=data;
             cache.delete('/pendiente');
             history.replaceState({},'',window.location.pathname);
-            toast('📥 Ábre un cliente para ver lo compartido');
+            toast('📥 Abre un cliente para ver lo compartido');
           });
         }
       })
@@ -322,7 +397,7 @@ window.addEventListener('load',()=>{
       .catch(e=>console.log('SW error:',e));
   }
 });
-document.addEventListener('DOMContentLoaded',()=>{renderClientes();document.getElementById('txt').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviarTexto()}})});
+document.addEventListener('DOMContentLoaded',()=>{cargarClientes();document.getElementById('txt').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviarTexto()}})});
 </script>
 </body>
 </html>
