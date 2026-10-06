@@ -66,7 +66,7 @@
     .btn-ok{background:var(--vc);color:#fff}
     .spinner{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.35);border-radius:50%;border-top-color:#fff;animation:spin .75s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
-    .toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 22px;border-radius:22px;font-size:14px;z-index:400;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+    .toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 22px;border-radius:18px;font-size:14px;z-index:400;opacity:0;transition:opacity .25s;pointer-events:none;max-width:88%;white-space:pre-line;text-align:center;line-height:1.35}
     .toast.show{opacity:1}
     .modal-diag{width:92%;max-width:420px;max-height:80vh;overflow-y:auto;text-align:left}
     .modal-diag pre{background:#f0f0f0;padding:10px;border-radius:8px;font-size:11px;white-space:pre-wrap;word-break:break-all;margin-top:8px;max-height:220px;overflow-y:auto}
@@ -79,7 +79,7 @@
 <div id="pantalla-inicio" class="pantalla activa">
   <div class="header">
     <h1>📋 Registrador Boletas</h1>
-    <span class="ver" onclick="abrirDiagnostico()">v1.6 🔧</span>
+    <span class="ver" onclick="abrirDiagnostico()">v1.7 🔧</span>
   </div>
   <div id="lista-clientes"></div>
   <button class="fab" onclick="abrirModalCliente()">＋</button>
@@ -135,10 +135,12 @@
 <div class="overlay" id="modal-diagnostico">
   <div class="modal modal-diag">
     <h3>🔧 Diagnóstico</h3>
-    <div class="fila-diag"><span>Versión del código</span><b id="diag-version">v1.6</b></div>
-    <div class="fila-diag"><span>URL del script</span><b style="font-size:10px;word-break:break-all">…</b></div>
+    <div class="fila-diag"><span>Versión del código</span><b id="diag-version">v1.7</b></div>
+    <div class="fila-diag" style="flex-direction:column;align-items:flex-start;gap:4px"><span>URL del script</span><b id="diag-url" style="font-size:10px;word-break:break-all">…</b></div>
     <button class="btn-ok" style="width:100%;margin-top:10px" onclick="probarConexion()">📡 Probar conexión con Sheets</button>
-    <pre id="diag-resultado">Toca el botón para probar…</pre>
+    <button class="btn-ok" style="width:100%;margin-top:8px;background:#0b6bcb" onclick="abrirUrlScript()">🌐 Abrir URL en el navegador</button>
+    <button class="btn-ok" style="width:100%;margin-top:8px;background:#e67e00" onclick="probarRegistro()">🧪 Enviar boleta de PRUEBA</button>
+    <pre id="diag-resultado">Toca un botón para probar…</pre>
     <button class="btn-cancel" style="width:100%;margin-top:10px;border-radius:10px" onclick="cerrarModal('modal-diagnostico')">Cerrar</button>
   </div>
 </div>
@@ -146,7 +148,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const VERSION_APP = 'v1.6 - 20/08/2026 - clientes por hoja';
+const VERSION_APP = 'v1.7 - texto pendiente + borradores + diagnostico';
 const URL_AS='https://script.google.com/macros/s/AKfycbzS12GOA-PVS3d6F8oJO-aCo-AkrbyUl0lCnYWVXYkKkHuR1PPYJEUCDDS9OaYh3xeHLw/exec';
 let clienteActual=null,textoAcum='',imgFile=null,imgDataUrl=null,montoManual=null;
 
@@ -154,31 +156,138 @@ function ahora(){return new Date().toLocaleTimeString('es-CL',{hour:'2-digit',mi
 function toast(m,ms=3000){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),ms)}
 function autoH(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,110)+'px'}
 function scrollFin(){const m=document.getElementById('mensajes');setTimeout(()=>m.scrollTop=m.scrollHeight,60)}
-function guardarChat(){if(!clienteActual)return;localStorage.setItem('chat_'+clienteActual,document.getElementById('mensajes').innerHTML)}
+function guardarChat(){if(!clienteActual)return;try{localStorage.setItem('chat_'+clienteActual,document.getElementById('mensajes').innerHTML)}catch(e){}}
+
+// El texto/monto/foto pendientes se guardan por cliente: antes vivían sólo en
+// memoria y se perdían al cerrar la app, aunque las burbujas siguieran a la vista.
+function guardarBorrador(){
+  if(!clienteActual)return;
+  const b={textoAcum:textoAcum,montoManual:montoManual,pendiente:document.getElementById('txt').value};
+  if(imgDataUrl&&imgDataUrl.length<2000000){b.imgDataUrl=imgDataUrl;b.imgMime=imgFile?imgFile.type:'image/jpeg'}
+  try{localStorage.setItem('borrador_'+clienteActual,JSON.stringify(b))}catch(e){}
+}
+function cargarBorrador(nombre){
+  let b=null;
+  try{b=JSON.parse(localStorage.getItem('borrador_'+nombre)||'null')}catch(e){}
+  if(!b)return;
+  textoAcum=b.textoAcum||'';
+  montoManual=b.montoManual||null;
+  if(b.imgDataUrl){
+    imgDataUrl=b.imgDataUrl;imgFile={type:b.imgMime||'image/jpeg'};
+    document.getElementById('prev-img').src=imgDataUrl;
+    document.getElementById('prev-wrap').style.display='block';
+  }
+  if(b.pendiente){const t=document.getElementById('txt');t.value=b.pendiente;autoH(t)}
+}
+function borrarBorrador(){if(clienteActual)localStorage.removeItem('borrador_'+clienteActual)}
+function reiniciarEstado(){
+  textoAcum='';montoManual=null;imgFile=imgDataUrl=null;
+  document.getElementById('prev-wrap').style.display='none';
+  document.getElementById('prev-img').src='';
+  const t=document.getElementById('txt');t.value='';t.style.height='auto';
+}
 
 // ===== Diagnóstico =====
 function abrirDiagnostico(){
   document.getElementById('diag-version').textContent=VERSION_APP;
+  document.getElementById('diag-url').textContent=URL_AS;
+  document.getElementById('diag-resultado').textContent=ultimoDiag;
   document.getElementById('modal-diagnostico').classList.add('abierto');
+}
+
+// Deja registro del último envío para poder ver qué respondió el script.
+let ultimoDiag='Todavía no se ha enviado nada desde que se abrió la app.';
+function anotarDiag(titulo,payload,respuesta){
+  const copia=Object.assign({},payload);
+  if(copia.imagenBase64)copia.imagenBase64='[base64 de '+copia.imagenBase64.length+' caracteres]';
+  ultimoDiag=titulo+'\n'+new Date().toLocaleString('es-CL')+'\n\n— ENVIADO —\n'+JSON.stringify(copia,null,1)+'\n\n— RESPUESTA —\n'+(respuesta||'(vacía)');
+  const pre=document.getElementById('diag-resultado');
+  if(pre&&document.getElementById('modal-diagnostico').classList.contains('abierto'))pre.textContent=ultimoDiag;
+}
+
+// Envía al Apps Script y distingue los distintos motivos de falla.
+class ErrorEnvio extends Error{constructor(msg,raw){super(msg);this.raw=raw||''}}
+async function enviarAlScript(payload,ms=60000){
+  const ctrl=new AbortController();
+  const timer=setTimeout(()=>ctrl.abort(),ms);
+  let res;
+  try{
+    res=await fetch(URL_AS,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'},redirect:'follow',signal:ctrl.signal});
+  }catch(err){
+    clearTimeout(timer);
+    const motivo=err.name==='AbortError'
+      ? 'La conexión tardó demasiado y se canceló.\nRevisa la señal e intenta de nuevo.'
+      : 'No se pudo contactar al script.\nRevisa tu conexión a internet.';
+    anotarDiag('❌ Falló la conexión: '+err.name+' '+err.message,payload,'');
+    throw new ErrorEnvio(motivo,'');
+  }
+  clearTimeout(timer);
+  const raw=await res.text();
+  let data=null;
+  try{data=JSON.parse(raw)}catch(e){}
+  if(!data){
+    anotarDiag('❌ Respuesta no es JSON (HTTP '+res.status+')',payload,raw.slice(0,3000));
+    const pideLogin=/accounts\.google\.com|ServiceLogin|iniciar sesión|sign in/i.test(raw);
+    throw new ErrorEnvio(pideLogin
+      ? 'El script pide iniciar sesión.\nVuelve a publicarlo en Apps Script con\n"Ejecutar como: yo" y\n"Quién tiene acceso: cualquier persona".'
+      : 'El script no respondió JSON (HTTP '+res.status+').\nAbre 🔧 Diagnóstico para ver la respuesta.',raw);
+  }
+  if(!data.ok){
+    anotarDiag('❌ El script respondió ok:false',payload,raw.slice(0,3000));
+    throw new ErrorEnvio('El script rechazó el registro:\n'+(data.error||'sin detalle')+'\nAbre 🔧 Diagnóstico para ver el detalle.',raw);
+  }
+  anotarDiag('✅ Registrado correctamente',payload,raw.slice(0,3000));
+  return data;
+}
+
+async function probarRegistro(){
+  // Se usa un cliente real para que la fila caiga en una hoja que sí existe.
+  const destino=clienteActual||cargarClientesCache()[0];
+  if(!destino){toast('Crea primero un cliente para poder probar');return}
+  if(!confirm('Se enviará una boleta de PRUEBA a la hoja de "'+destino+'" para comprobar que el registro funciona.\nDespués puedes borrar esa fila a mano. ¿Continuar?'))return;
+  const pre=document.getElementById('diag-resultado');
+  pre.textContent='⏳ Enviando boleta de prueba a "'+destino+'"...';
+  const datos={nombre:'PRUEBA DIAGNOSTICO',rut:'11111111-1',direccion:'Calle de Prueba 123, Santiago',email:'',monto:1,cliente:destino};
+  datos.region=inferirRegion(datos.direccion);
+  try{
+    const data=await enviarAlScript(datos);
+    pre.textContent='✅ El script SÍ registra. Fila #'+data.numero+'\n\n'+ultimoDiag;
+  }catch(err){
+    pre.textContent='❌ '+err.message+'\n\n'+ultimoDiag;
+  }
 }
 async function probarConexion(){
   const pre=document.getElementById('diag-resultado');
   pre.textContent='⏳ Probando conexión con doGet...\n';
-  try{
-    const res1=await fetch(URL_AS);
-    const data1=await res1.json();
-    pre.textContent = '✅ doGet responde:\n' + JSON.stringify(data1,null,2) + '\n\n';
-  }catch(e){
-    pre.textContent = '❌ doGet falló: ' + e.message + '\n\n';
+  for(const [etiqueta,url] of [['doGet',URL_AS],['listarClientes',URL_AS+'?accion=listarClientes']]){
+    try{
+      const res=await fetch(url,{redirect:'follow'});
+      const raw=await res.text();
+      let data=null;
+      try{data=JSON.parse(raw)}catch(e){}
+      pre.textContent+=(data?'✅ ':'⚠️ ')+etiqueta+' → HTTP '+res.status+'\n'+(data?JSON.stringify(data,null,1):'Respuesta NO JSON (probablemente pide iniciar sesión):\n'+raw.slice(0,600))+'\n\n';
+    }catch(e){
+      pre.textContent+='❌ '+etiqueta+' falló: '+e.message+'\n';
+      if(/failed to fetch|load failed|networkerror/i.test(e.message)){
+        // El navegador no distingue "sin internet" de "el script se cayó":
+        // una página de error de Apps Script no trae cabeceras CORS, así que
+        // fetch sólo puede decir "Failed to fetch".
+        pre.textContent+=
+          '   Si la prueba de arriba SÍ respondió, no es falta de internet.\n'+
+          '   Significa que el script se cayó con un error interno: Google\n'+
+          '   devuelve una página de error sin permisos CORS y el navegador\n'+
+          '   no deja leer el motivo.\n'+
+          '   → Toca "Abrir URL en el navegador" para ver el error real.\n'+
+          '   → Y revisa "Ejecuciones" en el editor de Apps Script.\n';
+      }
+      pre.textContent+='\n';
+    }
   }
-  pre.textContent += '⏳ Probando listarClientes...\n';
-  try{
-    const res2=await fetch(URL_AS+'?accion=listarClientes');
-    const data2=await res2.json();
-    pre.textContent += '✅ listarClientes responde:\n' + JSON.stringify(data2,null,2);
-  }catch(e){
-    pre.textContent += '❌ listarClientes falló: ' + e.message;
-  }
+}
+
+// Abrir la URL fuera de la app: así no hay CORS y Google muestra el error real.
+function abrirUrlScript(){
+  window.open(URL_AS+'?accion=listarClientes','_blank');
 }
 
 // ===== Lista de clientes: caché local + servidor (Google Sheets) =====
@@ -213,20 +322,15 @@ async function guardarCliente(){
   if(!n){toast('Escribe un nombre');return}
   toast('⏳ Creando cliente...',4000);
   try{
-    const res=await fetch(URL_AS,{method:'POST',body:JSON.stringify({accion:'crearCliente',nombre:n}),headers:{'Content-Type':'text/plain'}});
-    const data=await res.json();
-    if(data.ok){
-      cerrarModal('modal-cliente');
-      const lista=cargarClientesCache();
-      lista.push(data.nombre);
-      guardarClientesCache(lista);
-      renderClientes(lista);
-      toast('✅ Cliente "'+data.nombre+'" agregado');
-    }else{
-      toast('❌ Error: '+(data.error||'desconocido'));
-    }
+    const data=await enviarAlScript({accion:'crearCliente',nombre:n});
+    cerrarModal('modal-cliente');
+    const lista=cargarClientesCache();
+    if(!lista.includes(data.nombre))lista.push(data.nombre);
+    guardarClientesCache(lista);
+    renderClientes(lista);
+    toast('✅ Cliente "'+data.nombre+'" agregado');
   }catch(err){
-    toast('❌ Error de conexión al crear cliente');
+    toast('❌ '+(err.message||'Error de conexión al crear cliente'),7000);console.error(err);
   }
 }
 
@@ -238,6 +342,10 @@ function abrirChat(nombre){
   document.getElementById('pantalla-chat').classList.add('activa');
   document.getElementById('mensajes').innerHTML=localStorage.getItem('chat_'+nombre)||'';
   scrollFin();
+
+  // Sin esto el texto/foto/monto del cliente anterior se arrastraban al siguiente.
+  reiniciarEstado();
+  cargarBorrador(nombre);
 
   if(window._txt){document.getElementById('txt').value=window._txt;autoH(document.getElementById('txt'));window._txt=null}
 
@@ -253,8 +361,9 @@ function abrirChat(nombre){
     window._compartido=null;
     toast('📥 Contenido compartido cargado');
   }
+  guardarBorrador();
 }
-function volverInicio(){document.getElementById('pantalla-chat').classList.remove('activa');document.getElementById('pantalla-inicio').classList.add('activa');clienteActual=null}
+function volverInicio(){guardarBorrador();document.getElementById('pantalla-chat').classList.remove('activa');document.getElementById('pantalla-inicio').classList.add('activa');clienteActual=null}
 
 function burbuja(html,tipo){
   const d=document.createElement('div');d.className='burbuja '+tipo;
@@ -264,7 +373,7 @@ function burbuja(html,tipo){
 function enviarTexto(){
   const t=document.getElementById('txt'),v=t.value.trim();if(!v)return;
   textoAcum+=(textoAcum?'\n':'')+v;burbuja(v.replace(/\n/g,'<br>'),'entrada');
-  t.value='';t.style.height='auto'
+  t.value='';t.style.height='auto';guardarBorrador()
 }
 
 function comprimirImagen(file, callback){
@@ -297,13 +406,14 @@ function elegirImg(i){
     imgFile = { type: 'image/jpeg' };
     document.getElementById('prev-img').src=imgDataUrl;
     document.getElementById('prev-wrap').style.display='block';
+    guardarBorrador();
   });
   i.value=''
 }
-function quitarImg(){imgFile=imgDataUrl=null;document.getElementById('prev-wrap').style.display='none';document.getElementById('prev-img').src=''}
+function quitarImg(){imgFile=imgDataUrl=null;document.getElementById('prev-wrap').style.display='none';document.getElementById('prev-img').src='';guardarBorrador()}
 function abrirModalMonto(){document.getElementById('inp-monto').value=montoManual||'';document.getElementById('modal-monto').classList.add('abierto');setTimeout(()=>document.getElementById('inp-monto').focus(),100)}
-function guardarMonto(){const v=parseInt(document.getElementById('inp-monto').value);if(!v||v<=0){toast('Ingresa un monto válido');return}montoManual=v;cerrarModal('modal-monto');burbuja(`💰 Monto: <b>$${v.toLocaleString('es-CL')}</b>`,'entrada')}
-function limpiar(){if(!confirm('¿Limpiar el chat?'))return;textoAcum='';imgFile=imgDataUrl=montoManual=null;document.getElementById('mensajes').innerHTML='';document.getElementById('txt').value='';document.getElementById('txt').style.height='auto';quitarImg();guardarChat()}
+function guardarMonto(){const v=parseInt(document.getElementById('inp-monto').value);if(!v||v<=0){toast('Ingresa un monto válido');return}montoManual=v;cerrarModal('modal-monto');burbuja(`💰 Monto: <b>$${v.toLocaleString('es-CL')}</b>`,'entrada');guardarBorrador()}
+function limpiar(){if(!confirm('¿Limpiar el chat?'))return;reiniciarEstado();document.getElementById('mensajes').innerHTML='';borrarBorrador();guardarChat()}
 
 function parsearTexto(t){
   const r={nombre:'',rut:'',direccion:'',email:''};if(!t)return r;
@@ -340,6 +450,10 @@ function inferirRegion(d){
 async function registrar(){
   const btn=document.getElementById('btn-reg');
   if(btn.disabled)return;
+  // ARREGLO PRINCIPAL: el texto escrito/pegado en la caja no se enviaba nunca.
+  // Sólo contaba lo que se había pasado con la flecha ➤, así que pegar y tocar
+  // "Registrar" mandaba la boleta vacía (o avisaba que no había nada que registrar).
+  if(document.getElementById('txt').value.trim())enviarTexto();
   if(!textoAcum&&!imgFile&&!montoManual){toast('⚠️ Agrega texto, foto o monto antes de registrar');return}
   btn.innerHTML='<span class="spinner"></span> Enviando...';btn.disabled=true;
   try{
@@ -350,24 +464,23 @@ async function registrar(){
     if(imgFile){datos.imagenBase64=imgDataUrl.split(',')[1];datos.imagenMime=imgFile.type}
     if(!datos.nombre)datos.nombre=clienteActual;
     datos.cliente=clienteActual;
-    const res=await fetch(URL_AS,{method:'POST',body:JSON.stringify(datos),headers:{'Content-Type':'text/plain'}});
-    const data=await res.json();
-    if(data.ok){
-      const div=document.createElement('div');div.className='tarjeta';
-      div.innerHTML=`<h4>✅ Registrado #${data.numero}</h4>
-        <div class="c"><b>Nombre:</b> ${datos.nombre||'—'}</div>
-        <div class="c"><b>RUT:</b> ${datos.rut||'—'}</div>
-        <div class="c"><b>Dirección:</b> ${datos.direccion||'—'}</div>
-        <div class="c"><b>Región:</b> ${datos.region||'—'}</div>
-        <div class="c"><b>Monto:</b> ${datos.monto?'$'+Number(datos.monto).toLocaleString('es-CL'):'—'}</div>
-        ${data.linkFoto?`<div class="c"><a href="${data.linkFoto}" target="_blank">📎 Ver comprobante</a></div>`:''}
-        <div class="hora">${ahora()}</div>`;
-      document.getElementById('mensajes').appendChild(div);guardarChat();scrollFin();
-      toast('✅ ¡Registrado correctamente!');
-      textoAcum='';imgFile=imgDataUrl=montoManual=null;
-      document.getElementById('txt').value='';document.getElementById('txt').style.height='auto';quitarImg()
-    }else{toast('❌ Error: '+(data.error||'desconocido'))}
-  }catch(err){toast('❌ Error de conexión');console.error(err)}
+    const data=await enviarAlScript(datos);
+    const div=document.createElement('div');div.className='tarjeta';
+    div.innerHTML=`<h4>✅ Registrado #${data.numero}</h4>
+      <div class="c"><b>Nombre:</b> ${datos.nombre||'—'}</div>
+      <div class="c"><b>RUT:</b> ${datos.rut||'—'}</div>
+      <div class="c"><b>Dirección:</b> ${datos.direccion||'—'}</div>
+      <div class="c"><b>Región:</b> ${datos.region||'—'}</div>
+      <div class="c"><b>Monto:</b> ${datos.monto?'$'+Number(datos.monto).toLocaleString('es-CL'):'—'}</div>
+      ${data.linkFoto?`<div class="c"><a href="${data.linkFoto}" target="_blank">📎 Ver comprobante</a></div>`:''}
+      <div class="hora">${ahora()}</div>`;
+    document.getElementById('mensajes').appendChild(div);guardarChat();scrollFin();
+    toast('✅ ¡Registrado correctamente!');
+    reiniciarEstado();borrarBorrador()
+  }catch(err){
+    // El borrador NO se borra: así la boleta no se pierde y se puede reintentar.
+    toast('❌ '+(err.message||'Error de conexión'),7000);console.error(err)
+  }
   finally{btn.innerHTML='✅ Registrar';btn.disabled=false}
 }
 

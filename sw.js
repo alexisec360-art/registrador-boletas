@@ -1,4 +1,4 @@
-const CACHE = 'registrador-v5';
+const CACHE = 'registrador-v6';
 const ARCHIVOS = [
   '/registrador-boletas/',
   '/registrador-boletas/index.html',
@@ -30,6 +30,25 @@ self.addEventListener('fetch', e => {
 
   if (e.request.method !== 'GET') return;
   if (!e.request.url.startsWith(self.location.origin)) return;
+
+  // El HTML va primero a la red: con caché primero, una versión nueva de la app
+  // nunca llegaba al teléfono mientras este sw.js no cambiara.
+  const esDocumento = e.request.mode === 'navigate' ||
+                      url.pathname.endsWith('/') ||
+                      url.pathname.endsWith('.html');
+  if (esDocumento) {
+    e.respondWith(
+      fetch(e.request)
+        .then(res => {
+          const copia = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, copia)).catch(() => {});
+          return res;
+        })
+        .catch(() => caches.match(e.request)
+          .then(r => r || caches.match('/registrador-boletas/index.html')))
+    );
+    return;
+  }
 
   e.respondWith(
     caches.match(e.request).then(r => r || fetch(e.request))
