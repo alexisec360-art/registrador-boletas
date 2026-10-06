@@ -240,10 +240,13 @@ async function enviarAlScript(payload,ms=60000){
 }
 
 async function probarRegistro(){
-  if(!confirm('Se enviará una boleta de PRUEBA al Sheets para comprobar que el registro funciona. ¿Continuar?'))return;
+  // Se usa un cliente real para que la fila caiga en una hoja que sí existe.
+  const destino=clienteActual||cargarClientesCache()[0];
+  if(!destino){toast('Crea primero un cliente para poder probar');return}
+  if(!confirm('Se enviará una boleta de PRUEBA a la hoja de "'+destino+'" para comprobar que el registro funciona.\nDespués puedes borrar esa fila a mano. ¿Continuar?'))return;
   const pre=document.getElementById('diag-resultado');
-  pre.textContent='⏳ Enviando boleta de prueba...';
-  const datos={nombre:'PRUEBA DIAGNOSTICO',rut:'11.111.111-1',direccion:'Calle de Prueba 123, Santiago',email:'',monto:1,cliente:clienteActual||'PRUEBA'};
+  pre.textContent='⏳ Enviando boleta de prueba a "'+destino+'"...';
+  const datos={nombre:'PRUEBA DIAGNOSTICO',rut:'11111111-1',direccion:'Calle de Prueba 123, Santiago',email:'',monto:1,cliente:destino};
   datos.region=inferirRegion(datos.direccion);
   try{
     const data=await enviarAlScript(datos);
