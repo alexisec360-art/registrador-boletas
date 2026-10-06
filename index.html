@@ -138,6 +138,7 @@
     <div class="fila-diag"><span>Versión del código</span><b id="diag-version">v1.7</b></div>
     <div class="fila-diag" style="flex-direction:column;align-items:flex-start;gap:4px"><span>URL del script</span><b id="diag-url" style="font-size:10px;word-break:break-all">…</b></div>
     <button class="btn-ok" style="width:100%;margin-top:10px" onclick="probarConexion()">📡 Probar conexión con Sheets</button>
+    <button class="btn-ok" style="width:100%;margin-top:8px;background:#0b6bcb" onclick="abrirUrlScript()">🌐 Abrir URL en el navegador</button>
     <button class="btn-ok" style="width:100%;margin-top:8px;background:#e67e00" onclick="probarRegistro()">🧪 Enviar boleta de PRUEBA</button>
     <pre id="diag-resultado">Toca un botón para probar…</pre>
     <button class="btn-cancel" style="width:100%;margin-top:10px;border-radius:10px" onclick="cerrarModal('modal-diagnostico')">Cerrar</button>
@@ -266,9 +267,27 @@ async function probarConexion(){
       try{data=JSON.parse(raw)}catch(e){}
       pre.textContent+=(data?'✅ ':'⚠️ ')+etiqueta+' → HTTP '+res.status+'\n'+(data?JSON.stringify(data,null,1):'Respuesta NO JSON (probablemente pide iniciar sesión):\n'+raw.slice(0,600))+'\n\n';
     }catch(e){
-      pre.textContent+='❌ '+etiqueta+' falló: '+e.message+'\n\n';
+      pre.textContent+='❌ '+etiqueta+' falló: '+e.message+'\n';
+      if(/failed to fetch|load failed|networkerror/i.test(e.message)){
+        // El navegador no distingue "sin internet" de "el script se cayó":
+        // una página de error de Apps Script no trae cabeceras CORS, así que
+        // fetch sólo puede decir "Failed to fetch".
+        pre.textContent+=
+          '   Si la prueba de arriba SÍ respondió, no es falta de internet.\n'+
+          '   Significa que el script se cayó con un error interno: Google\n'+
+          '   devuelve una página de error sin permisos CORS y el navegador\n'+
+          '   no deja leer el motivo.\n'+
+          '   → Toca "Abrir URL en el navegador" para ver el error real.\n'+
+          '   → Y revisa "Ejecuciones" en el editor de Apps Script.\n';
+      }
+      pre.textContent+='\n';
     }
   }
+}
+
+// Abrir la URL fuera de la app: así no hay CORS y Google muestra el error real.
+function abrirUrlScript(){
+  window.open(URL_AS+'?accion=listarClientes','_blank');
 }
 
 // ===== Lista de clientes: caché local + servidor (Google Sheets) =====
